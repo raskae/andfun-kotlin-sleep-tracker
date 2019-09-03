@@ -18,6 +18,7 @@ package com.example.android.trackmysleepquality.sleeptracker
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
 import com.example.android.trackmysleepquality.database.SleepDatabaseDao
@@ -53,6 +54,10 @@ class SleepTrackerViewModel(
 
     private val nights = database.getAllNights()
 
+    private val _navigateToSleepQuality = MutableLiveData<SleepNight>()
+    val navigateToSleepQuality: LiveData<SleepNight>
+        get() = _navigateToSleepQuality
+
     /**
      * Converted nights to Spanned for displaying.
      */
@@ -68,6 +73,10 @@ class SleepTrackerViewModel(
         uiScope.launch {
             tonight.value = getTonightFromDatabase()
         }
+    }
+
+    fun doneNavigating() {
+        _navigateToSleepQuality.value = null
     }
 
     /**
@@ -130,11 +139,12 @@ class SleepTrackerViewModel(
             // In this case, we are specifying to return from launch(),
             // not the lambda.
             val oldNight = tonight.value ?: return@launch
-
             // Update the night in the database to add the end time.
             oldNight.endTimeMilli = System.currentTimeMillis()
-
+            _navigateToSleepQuality.value = oldNight
             update(oldNight)
+
+
         }
     }
 
@@ -149,6 +159,7 @@ class SleepTrackerViewModel(
             // And clear tonight since it's no longer in the database
             tonight.value = null
         }
+        _showSnackbarEvent.value = true
     }
 
     /**
@@ -161,5 +172,25 @@ class SleepTrackerViewModel(
         super.onCleared()
         viewModelJob.cancel()
     }
+
+    val startButtonVisible = Transformations.map(tonight) {
+        null == it
+    }
+    val stopButtonVisible = Transformations.map(tonight) {
+        null != it
+    }
+    val clearButtonVisible = Transformations.map(nights) {
+        it?.isNotEmpty()
+    }
+
+    private var _showSnackbarEvent = MutableLiveData<Boolean>()
+
+    val showSnackBarEvent: LiveData<Boolean>
+        get() = _showSnackbarEvent
+
+    fun doneShowingSnackbar() {
+        _showSnackbarEvent.value = false
+    }
+
 }
 
